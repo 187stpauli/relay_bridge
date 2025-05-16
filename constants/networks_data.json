@@ -1,0 +1,14 @@
+{
+  "Abstract": {
+    "chain_id": 2741,
+    "rpc_url": "https://api.mainnet.abs.xyz",
+    "explorer_url": "https://basescan.org/",
+    "native_address": "0x0000000000000000000000000000000000000000"
+  },
+  "Arbitrum": {
+    "chain_id": 42161,
+    "rpc_url": "https://arbitrum-one-rpc.publicnode.com",
+    "explorer_url": "https://arbiscan.io/",
+    "native_address": "0x0000000000000000000000000000000000000000"
+  }
+}
