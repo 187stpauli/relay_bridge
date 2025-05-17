@@ -22,6 +22,11 @@ def load_profiles(private_keys_path: str, proxies_path: str) -> list[dict]:
     return [{"private_key": pk, "proxy": proxy} for pk, proxy in zip(private_keys, proxies)]
 
 
+async def get_random_float(min_value: float, max_value: float, precision: int = 3) -> float:
+
+    return round(random.uniform(min_value, max_value), precision)
+
+
 async def run_profile(i, profile: dict, settings: dict, from_network: dict, to_network: dict):
     try:
         from_address = None
@@ -43,7 +48,9 @@ async def run_profile(i, profile: dict, settings: dict, from_network: dict, to_n
         )
 
         native_balance = await check_balance(client, settings)
-        real_amount = int(native_balance / 2)
+        percent_min, percent_max = settings.get("transfer_amount_range")
+        percentage = await get_random_float(percent_min, percent_max)
+        real_amount = int(native_balance * percentage)
 
         await client.set_amount(real_amount)
 
