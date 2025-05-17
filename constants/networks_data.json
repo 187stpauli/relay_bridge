@@ -2,7 +2,7 @@
   "Abstract": {
     "chain_id": 2741,
     "rpc_url": "https://api.mainnet.abs.xyz",
-    "explorer_url": "https://basescan.org/",
+    "explorer_url": "https://abscan.org/",
     "native_address": "0x0000000000000000000000000000000000000000",
     "receiver": "0xa5f565650890fba1824ee0f21ebbbf660a179934"
   },

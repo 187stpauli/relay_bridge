@@ -55,8 +55,8 @@ def retry_on_proxy_error(max_attempts: int = 3, fallback_no_proxy: bool = True):
 
 
 class Client:
-    def __init__(self, from_address: str, chain_id: int, chain_id_to: int, rpc_url: str, private_key: str,
-                 explorer_url: str, token: str, amount: float | int, proxy: Optional[str] = None):
+    def __init__(self, from_address: str, chain_id: int, chain_id_to: int, rpc_url: str,
+                 private_key: str, explorer_url: str, token: str, amount: float | int, proxy: Optional[str] = None):
         request_kwargs = {"proxy": f"http://{proxy}"} if proxy else {}
         self.explorer_url = explorer_url
         self.private_key = private_key
@@ -278,14 +278,15 @@ class Client:
         while True:
             try:
                 receipt = await self.w3.eth.get_transaction_receipt(tx_hash_bytes)
+                tx_hash_bytes = f"0x{HexBytes(tx_hash)}"
                 status = receipt.get("status")
                 if status == 1:
-                    logger.info(f"✅ Транзакция выполнена успешно: {explorer_url}/tx/{tx_hash_bytes.hex()}\n")
+                    logger.info(f"✅ Транзакция выполнена успешно: {self.explorer_url}tx/{tx_hash_bytes.hex()}\n")
                     return True
                 elif status is None:
                     await asyncio.sleep(poll_latency)
                 else:
-                    logger.error(f"❌ Транзакция не выполнена: {explorer_url}/tx/{tx_hash_bytes.hex()}")
+                    logger.error(f"❌ Транзакция не выполнена: {self.explorer_url}tx/{tx_hash_bytes.hex()}\n")
                     return False
             except TransactionNotFound:
                 if total_time > timeout:

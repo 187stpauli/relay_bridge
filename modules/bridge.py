@@ -1,8 +1,8 @@
 import aiohttp
-from eth_abi import abi
+from eth_utils import to_checksum_address
+
 from client.client import Client
 from utils.logger import logger
-from utils.balance_checker import check_balance
 
 
 class Bridge:
@@ -48,7 +48,31 @@ class Bridge:
         except Exception as e:
             logger.error(f"❌ Ошибка при получении квоты: {e}")
 
-    async def get_status(self):
+    async def get_status(self, data):
+        try:
+            url = "https://api.relay.link/intents/status/v2"
+            querystring = {"requestId": data}
+            proxy = f"http://{self.client.proxy}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=querystring, proxy=proxy) as response:
+                    if response.status != 200:
+                        text = await response.text()
+                        logger.error(f"❌ Ошибка запроса: статус {response.status}, ответ: {text}\n")
+                        return {}
+
+                    try:
+                        result = await response.json()
+                        logger.info(f"✅ Операция успешно завершена,"
+                                    f" проверьте поступления средств в сети назначения...")
+                        return result
+
+                    except aiohttp.ContentTypeError:
+                        text = await response.text()
+                        logger.error(f"❌ Некорректный JSON в ответе: {text}\n")
+                        return {}
+        except Exception as e:
+            logger.error(f"❌ Ошибка при выполнении status-запроса: {e}")
+            return {}
 
     async def execute_bridge(self):
 
@@ -57,10 +81,9 @@ class Bridge:
             step = quote["steps"][0]
             item = step["items"][0]
             tx_data = item["data"]
-            to_address = tx_data["to"]
 
             tx = await self.client.prepare_tx(
-                to_address=tx_data["to"],
+                to_address=to_checksum_address(tx_data["to"]),
                 value=int(tx_data["value"]),
                 data=tx_data["data"],
                 max_fee_per_gas=int(tx_data["maxFeePerGas"]),
@@ -68,39 +91,8 @@ class Bridge:
             )
 
             tx_hash = await self.client.sign_and_send_tx(transaction=tx, external_gas=int(tx_data["gas"]))
-            status = await self.client.wait_tx(tx_hash)
-
-
-            send_params = [
-                self.to_network['endpoint_id'],
-                abi.encode(["address"], [self.client.address]),
-                self.client.amount,
-                quote_oft[2][1],
-                b'',
-                b'',
-                b''
-            ]
-
-            tx = await self.pool_contract.functions.send(
-                send_params,
-                bridge_fee,
-                self.client.address
-            ).build_transaction(await self.client.prepare_tx(value))
-
-            amount_approve = 2 ** 256 - 1
-
-            if self.settings["token"] == "USDC":
-                allowance = await self.client.get_allowance(self.from_network["usdc_address"], self.client.address,
-                                                            self.from_network["usdc_pool_address"])
-                if allowance < amount_approve:
-                    await self.client.approve_usdc(self.from_network["usdc_address"],
-                                                   self.from_network["usdc_pool_address"],
-                                                   amount_approve, True)
-
-            tx_hash = await self.client.sign_and_send_tx(tx)
-            result = await self.client.wait_tx(tx_hash, self.client.explorer_url)
-            if result:
-                logger.info(f"💵 Бридж совершен, ожидайте поступления средств в сети назначения...")
+            await self.client.wait_tx(tx_hash)
+            await self.get_status(tx_data["data"])
 
             return
         except Exception as e:
