@@ -278,15 +278,14 @@ class Client:
         while True:
             try:
                 receipt = await self.w3.eth.get_transaction_receipt(tx_hash_bytes)
-                tx_hash_bytes = f"0x{HexBytes(tx_hash)}"
                 status = receipt.get("status")
                 if status == 1:
-                    logger.info(f"✅ Транзакция выполнена успешно: {self.explorer_url}tx/{tx_hash_bytes.hex()}\n")
+                    logger.info(f"✅ Транзакция выполнена успешно: {self.explorer_url}tx/0x{tx_hash_bytes.hex()}\n")
                     return True
                 elif status is None:
                     await asyncio.sleep(poll_latency)
                 else:
-                    logger.error(f"❌ Транзакция не выполнена: {self.explorer_url}tx/{tx_hash_bytes.hex()}\n")
+                    logger.error(f"❌ Транзакция не выполнена: {self.explorer_url}tx/0x{tx_hash_bytes.hex()}\n")
                     return False
             except TransactionNotFound:
                 if total_time > timeout:
