@@ -1,3 +1,4 @@
+from eth_utils import to_checksum_address
 from config.configvalidator import ConfigValidator
 from utils.balance_checker import check_balance
 from client.client import Client
@@ -6,8 +7,6 @@ from utils.logger import logger
 import asyncio
 import random
 import json
-
-RELAY_RECEIVER = "0xa5f565650890fba1824ee0f21ebbbf660a179934"
 
 
 def load_profiles(private_keys_path: str, proxies_path: str) -> list[dict]:
@@ -23,11 +22,13 @@ def load_profiles(private_keys_path: str, proxies_path: str) -> list[dict]:
     return [{"private_key": pk, "proxy": proxy} for pk, proxy in zip(private_keys, proxies)]
 
 
-async def run_profile(i, profile: dict, settings: dict, from_network: dict, to_network: dict, pool_abi: dict | None):
+async def run_profile(i, profile: dict, settings: dict, from_network: dict, to_network: dict):
     try:
         from_address = None
+        receiver_address = None
         if settings["token"] == "ETH":
             from_address = from_network["native_address"]
+            receiver_address = to_checksum_address(from_network["receiver"])
 
         client = Client(
             proxy=profile["proxy"],
@@ -47,7 +48,7 @@ async def run_profile(i, profile: dict, settings: dict, from_network: dict, to_n
         await client.set_amount(real_amount)
 
         logger.info("⚙️ Собираем и подписываем транзакцию...\n")
-        bridge = await Bridge.create(client, from_network, to_network, settings, pool_abi)
+        bridge = Bridge(client, from_network, to_network, settings, receiver_address)
         await bridge.execute_bridge()
 
     except Exception as e:
@@ -66,15 +67,13 @@ async def main():
         from_network = networks_data[settings["from_network"]]
         to_network = networks_data[settings["to_network"]]
 
-        pool_abi = None
-
         # 📌 Загрузка профилей
         profiles = load_profiles("config/private_keys.txt", "config/proxies.txt")
         logger.info(f"🔐 Загружено {len(profiles)} профилей.\n")
 
         for i, profile in enumerate(profiles, 1):
             logger.info(f"➡️ Запуск профиля {i}/{len(profiles)}: {profile['private_key'][:10]}...\n")
-            await run_profile(i, profile, settings, from_network, to_network, pool_abi)
+            await run_profile(i, profile, settings, from_network, to_network)
 
             if i < len(profiles):
                 delay_min, delay_max = settings.get("delay_between_profiles_range", [5, 10])

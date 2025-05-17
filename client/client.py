@@ -216,18 +216,21 @@ class Client:
         return receipt
 
     # Подготовка транзакции
-    async def prepare_tx(self, value: Union[int, float] = 0) -> TxParams:
+    async def prepare_tx(self, to_address: str, data: str, max_fee_per_gas, max_priority_fee_per_gas,
+                         value: Union[int, float] = 0) -> TxParams:
         transaction: TxParams = {
             "chainId": await self.w3.eth.chain_id,
             "nonce": await self.w3.eth.get_transaction_count(self.address),
             "from": self.address,
             "value": value,
+            "data": data,
+            "to": to_address
         }
 
         if self.eip_1559:
-            base_fee = await self.w3.eth.gas_price
-            max_priority_fee_per_gas = await self.w3.eth.max_priority_fee or base_fee
-            max_fee_per_gas = int(base_fee * 1.25 + max_priority_fee_per_gas)
+            # base_fee = await self.w3.eth.gas_price
+            # max_priority_fee_per_gas = await self.w3.eth.max_priority_fee or base_fee
+            # max_fee_per_gas = int(base_fee * 1.25 + max_priority_fee_per_gas)
 
             transaction.update({
                 "maxPriorityFeePerGas": max_priority_fee_per_gas,
@@ -246,7 +249,7 @@ class Client:
 
             if not without_gas:
                 if external_gas:
-                    transaction["gas"] = int(external_gas * 1.5)
+                    transaction["gas"] = int(external_gas)
                 else:
                     transaction["gas"] = int((await self.w3.eth.estimate_gas(transaction)) * 1.5)
             nonce = await self.w3.eth.get_transaction_count(self.address)

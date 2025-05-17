@@ -1,5 +1,4 @@
 import aiohttp
-import requests
 from eth_abi import abi
 from client.client import Client
 from utils.logger import logger
@@ -7,68 +6,70 @@ from utils.balance_checker import check_balance
 
 
 class Bridge:
-    def __init__(self, client: Client, from_network: dict, to_network: dict, settings: dict, pool_abi: list):
+    def __init__(self, client: Client, from_network: dict, to_network: dict, settings: dict, receiver_address: str):
         self.client = client
-        self.pool_abi = pool_abi
+        self.receiver_address = receiver_address
         self.from_network = from_network
         self.to_network = to_network
         self.settings = settings
         self.pool_contract = None
 
-    @classmethod
-    async def create(cls, client, from_network, to_network, amount, pool_abi):
-        self = cls(client, from_network, to_network, amount, pool_abi)
-        self.pool_contract = await self.client.get_contract(contract_address=client.pool_address, abi=pool_abi)
-        return self
-
-    async def get_fee_n_quote(self, send_params: list):
-        bridge_fee = await self.pool_contract.functions.quoteSend(send_params, False).call()
-        quote_oft = await self.pool_contract.functions.quoteOFT(send_params).call()
-        return bridge_fee, quote_oft
-
     async def get_quote(self):
-        url = "https://api.relay.link/quote"
+        try:
+            url = "https://api.relay.link/quote"
 
-        payload = {
-            "useReceiver": True,
-            "user": self.client.address,
-            "originChainId": self.client.chain_id,
-            "destinationChainId": self.client.chain_id_to,
-            "originCurrency": "0x0000000000000000000000000000000000000000",
-            "destinationCurrency": "0x0000000000000000000000000000000000000000",
-            "amount": str(self.client.amount),
-            "tradeType": "EXACT_INPUT"
-        }
-        headers = {"Content-Type": "application/json"}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, headers=headers, proxy=self.client.proxy) as response:
-                result = await response.json()
-                print(result)
-        response = requests.request("POST", url, json=payload, headers=headers)
+            payload = {
+                "useReceiver": True,
+                "user": self.client.address,
+                "originChainId": self.client.chain_id,
+                "destinationChainId": self.client.chain_id_to,
+                "originCurrency": "0x0000000000000000000000000000000000000000",
+                "destinationCurrency": "0x0000000000000000000000000000000000000000",
+                "amount": str(self.client.amount),
+                "tradeType": "EXACT_INPUT"
+            }
 
-        print(response.text)
+            headers = {"Content-Type": "application/json"}
+
+            proxy = f"http://{self.client.proxy}"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, headers=headers, proxy=proxy) as response:
+                    if response.status != 200:
+                        text = await response.text()
+                        raise logger.error(f"❌ Ошибка запроса: статус {response.status}, ответ: {text}\n")
+                    try:
+                        result = await response.json()
+                    except aiohttp.ContentTypeError:
+                        text = await response.text()
+                        raise logger.error(f"❌ Некорректный JSON в ответе: {text}\n")
+
+                    return result
+        except Exception as e:
+            logger.error(f"❌ Ошибка при получении квоты: {e}")
+
+    async def get_status(self):
 
     async def execute_bridge(self):
 
         try:
-            send_params = [
-                self.to_network['endpoint_id'],
-                abi.encode(["address"], [self.client.address]),
-                self.client.amount,
-                int(self.client.amount * 0.995),
-                b'',
-                b'',
-                b''
-            ]
+            quote = await self.get_quote()
+            step = quote["steps"][0]
+            item = step["items"][0]
+            tx_data = item["data"]
+            to_address = tx_data["to"]
 
-            bridge_fee, quote_oft = await self.get_fee_n_quote(send_params)
+            tx = await self.client.prepare_tx(
+                to_address=tx_data["to"],
+                value=int(tx_data["value"]),
+                data=tx_data["data"],
+                max_fee_per_gas=int(tx_data["maxFeePerGas"]),
+                max_priority_fee_per_gas=int(tx_data["maxPriorityFeePerGas"])
+            )
 
-            await check_balance(self.client, self.from_network, self.settings, bridge_fee[0])
+            tx_hash = await self.client.sign_and_send_tx(transaction=tx, external_gas=int(tx_data["gas"]))
+            status = await self.client.wait_tx(tx_hash)
 
-            if self.settings["token"] != "ETH":
-                value = int(bridge_fee[0])
-            else:
-                value = int(self.client.amount + bridge_fee[0])
 
             send_params = [
                 self.to_network['endpoint_id'],
