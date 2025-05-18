@@ -1,3 +1,4 @@
+from typing import Sized
 from eth_utils import to_checksum_address
 from config.configvalidator import ConfigValidator
 from utils.balance_checker import check_balance
@@ -27,7 +28,7 @@ async def get_random_float(min_value: float, max_value: float, precision: int = 
     return round(random.uniform(min_value, max_value), precision)
 
 
-async def run_profile(i, profile: dict, settings: dict, from_network: dict, to_network: dict):
+async def run_profile(profiles: Sized, i: int, profile: dict, settings: dict, from_network: dict, to_network: dict):
     try:
         from_address = None
         receiver_address = None
@@ -46,11 +47,25 @@ async def run_profile(i, profile: dict, settings: dict, from_network: dict, to_n
             token=settings["token"],
             explorer_url=from_network["explorer_url"]
         )
-
-        native_balance = await check_balance(client, settings)
+        logger.info(f"➡️ Запуск профиля {i}/{len(profiles)}: {client.address}...\n")
+        bridge_method = settings.get("bridge_method")
+        amount = settings.get("amount")
         percent_min, percent_max = settings.get("transfer_amount_range")
         percentage = await get_random_float(percent_min, percent_max)
-        real_amount = int(native_balance * percentage)
+        min_amount = await client.to_wei_main(settings["min_balance_to_bridge"])
+
+        native_balance = await check_balance(client, settings)
+        if native_balance < min_amount:
+            logger.info(
+                f"⚠️ Профиль #{i} пропущен — баланс ниже минимума ({native_balance} < {min_amount} wei)\n"
+            )
+            return
+        if bridge_method == "P":
+            real_amount = int(native_balance * percentage)
+        elif bridge_method == "PFL":
+            real_amount = int((native_balance - min_amount) * percentage)
+        else:
+            real_amount = int(await client.to_wei_main(amount))
 
         await client.set_amount(real_amount)
 
@@ -79,8 +94,7 @@ async def main():
         logger.info(f"🔐 Загружено {len(profiles)} профилей.\n")
 
         for i, profile in enumerate(profiles, 1):
-            logger.info(f"➡️ Запуск профиля {i}/{len(profiles)}: {profile['private_key'][:10]}...\n")
-            await run_profile(i, profile, settings, from_network, to_network)
+            await run_profile(profiles, i, profile, settings, from_network, to_network)
 
             if i < len(profiles):
                 delay_min, delay_max = settings.get("delay_between_profiles_range", [5, 10])

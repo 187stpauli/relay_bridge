@@ -1,10 +1,13 @@
 {
   "_1": "____________________________________________Сети для использования___________________________________________",
-  "_2": "_______________________________________________Arbitrum,Abstract_____________________________________________",
-  "from_network": "Arbitrum",
+  "_2": "___________________________________________Arbitrum,Abstract,Ronin___________________________________________",
+  "_3": "Методы_бриджа: P(percentage)/PFL(percentage_from_leftover)/A(amount)_________________________________________",
+  "from_network": "Ronin",
   "to_network": "Abstract",
-  "token": "ETH",
+  "token": "NATIVE",
   "delay_between_profiles_range": [300, 400],
-  "transfer_amount_range": [0.6, 0.8],
+  "transfer_amount_range": [0.8, 0.95],
+  "min_balance_to_bridge": 0.0015,
+  "bridge_method": "PFL",
   "amount": 0.0005
 }

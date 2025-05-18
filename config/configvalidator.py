@@ -61,7 +61,11 @@ class ConfigValidator:
             "from_network",
             "amount",
             "to_network",
-            "token"
+            "token",
+            "delay_between_profiles_range",
+            "transfer_amount_range",
+            "min_balance_to_bridge",
+            "bridge_method"
         ]
 
         for key in required_keys:
@@ -74,7 +78,7 @@ class ConfigValidator:
         """Валидация названия токена"""
         tokens = [
             "USDC",
-            "ETH"
+            "NATIVE"
         ]
         if token not in tokens:
             logging.error("❗️ Ошибка: Неподдерживаемый токен! Введите один из поддерживаемых токенов.")
@@ -85,7 +89,8 @@ class ConfigValidator:
         """Валидация названия сети"""
         networks = [
             "Abstract",
-            "Arbitrum"
+            "Arbitrum",
+            "Ronin"
         ]
         if network not in networks:
             logging.error("❗️ Ошибка: Неподдерживаемая сеть отправления! Введите одну из поддерживаемых сетей.")
@@ -96,7 +101,8 @@ class ConfigValidator:
         """Валидация названия сети"""
         networks = [
             "Abstract",
-            "Arbitrum"
+            "Arbitrum",
+            "Ronin"
         ]
         if network not in networks:
             logging.error("❗️ Ошибка: Неподдерживаемая сеть получения! Введите одну из поддерживаемых сетей.")
