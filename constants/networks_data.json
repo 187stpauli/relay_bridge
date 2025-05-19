@@ -15,7 +15,7 @@
   },
   "Ronin": {
     "chain_id": 2020,
-    "rpc_url": "https://arbitrum-one-rpc.publicnode.com",
+    "rpc_url": "https://ronin.lgns.net/rpc",
     "explorer_url": "https://app.roninchain.com/",
     "native_address": "0x0000000000000000000000000000000000000000",
     "receiver": "0x7f4babd2c7d35221e72ab67ea72cba99573a0089"
