@@ -24,6 +24,7 @@ class Network(Enum):
     TAIKO = {"chain_id": 167, "is_poa": False}
     ABSTRACT = {"chain_id": 2741, "is_poa": True}
     BERACHAIN = {"chain_id": 8008, "is_poa": False}
+    RONIN = {"chain_id": 2020, "is_poa": True}
 
     @property
     def chain_id(self) -> int:
